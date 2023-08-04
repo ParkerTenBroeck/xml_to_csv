@@ -3,9 +3,7 @@ name = "xml_to_csv"
 version = "0.1.0"
 edition = "2021"
 authors = ["Parker TenBroeck"]
-homepage = "https://github.com/ParkerTenBroeck"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+homepage = "https://github.com/ParkerTenBroeck/xml_to_csv"
 
 [dependencies]
 
