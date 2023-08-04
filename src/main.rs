@@ -6,6 +6,8 @@ use config::Config;
 pub mod config;
 pub mod xml_path;
 
+pub static DEFAULT_CONFIG: &str = include_str!("./default.json");
+
 /// XML to CSV converter
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -29,6 +31,22 @@ struct Args {
     /// skip over files that don't end with a .xml file extension
     #[arg(short, long)]
     filter: bool,
+
+    /// Print the default config
+    #[arg(short, long, value_parser = print_default, default_value_t = false)]
+    default: bool,
+
+    /// Continue parsing xml files if an error is encountered
+    #[arg(short, long)]
+    ignore_errors: bool,
+}
+
+fn print_default(s: &str) -> Result<bool, String> {
+    if s == "false" {
+        return Ok(false);
+    }
+    println!("{DEFAULT_CONFIG}");
+    std::process::exit(1);
 }
 
 fn verify_path_parser(s: &str) -> Result<PathBuf, String> {
@@ -58,7 +76,7 @@ fn run(args: Args) -> Result<(), Box<dyn Error>> {
             )
         })?)
     } else {
-        Cow::Borrowed(include_str!("./default.json"))
+        Cow::Borrowed(DEFAULT_CONFIG)
     };
     let config: Config<'_> = serde_json::from_str(config.as_ref()).map_err(|e| {
         format!(
@@ -87,8 +105,12 @@ fn run(args: Args) -> Result<(), Box<dyn Error>> {
         .write_record(None::<&[u8]>)
         .map_err(|e| format!("Failed to write CSV record: {e}"))?;
 
-    let dir = std::fs::read_dir(&args.xml_folder).map_err(|e|{
-        format!("Failed to read xml directory '{}': {}",args.xml_folder.to_string_lossy(), e)
+    let dir = std::fs::read_dir(&args.xml_folder).map_err(|e| {
+        format!(
+            "Failed to read xml directory '{}': {}",
+            args.xml_folder.to_string_lossy(),
+            e
+        )
     })?;
 
     for item in dir.into_iter().flatten() {
@@ -120,41 +142,64 @@ fn run(args: Args) -> Result<(), Box<dyn Error>> {
             )
         })?;
 
-        for column in &config.csv_columns {
-            let value = match &column.column_type {
-                config::ColumnType::ExtractXmlPath { path, default } => {
-                    let res = extract_from_xml(&xml, path);
-                    if let Some(default) = default {
-                        res.map(Cow::Owned)
-                            .unwrap_or(Cow::Borrowed(default.as_ref()))
-                    } else {
-                        Cow::Owned(res.map_err(|e| {
-                            format!(
-                                "Failed to extract column from xml file '{}': {e}",
-                                item.path().to_string_lossy()
-                            )
-                        })?)
-                    }
-                }
-                config::ColumnType::Text { text } => Cow::Borrowed(text.as_ref()),
-                config::ColumnType::Intrinsic { intrinsic } => match intrinsic {
-                    config::Intrinsic::FilePath => {
-                        Cow::Owned(item.path().into_os_string().to_string_lossy().into_owned())
-                    }
-                },
-            };
+        let row = parse_row(&item, &xml, &config);
 
-            csv_writter
-                .write_field(value.as_ref())
-                .map_err(|e| format!("Failed to write CSV field: {e}"))?;
-        }
+        let row = if args.ignore_errors {
+            match row {
+                Ok(ok) => ok,
+                Err(e) => {
+                    println!(
+                        "Failed to parse xml file '{}': {e}\nskipping to next item",
+                        item.path().to_string_lossy()
+                    );
+                    continue;
+                }
+            }
+        } else {
+            row?
+        };
 
         csv_writter
-            .write_record(None::<&[u8]>)
-            .map_err(|e| format!("Failed to write CSV record: {e}"))?;
+            .write_record(row.iter().map(|v| v.as_ref()))
+            .map_err(|e| format!("Failed to write CSV field: {e}"))?;
     }
 
     Ok(())
+}
+
+fn parse_row<'l>(
+    item: &std::fs::DirEntry,
+    xml: &'l xmltree::Element,
+    config: &'l Config<'_>,
+) -> Result<Vec<Cow<'l, str>>, Box<dyn Error>> {
+    let mut vals = Vec::new();
+    for column in &config.csv_columns {
+        let value = match &column.column_type {
+            config::ColumnType::ExtractXmlPath { path, default } => {
+                let res = extract_from_xml(xml, path);
+                if let Some(default) = default {
+                    res.map(Cow::Owned)
+                        .unwrap_or(Cow::Borrowed(default.as_ref()))
+                } else {
+                    Cow::Owned(res.map_err(|e| {
+                        format!(
+                            "Failed to extract column from xml file '{}': {e}",
+                            item.path().to_string_lossy()
+                        )
+                    })?)
+                }
+            }
+            config::ColumnType::Text { text } => Cow::Borrowed(text.as_ref()),
+            config::ColumnType::Intrinsic { intrinsic } => match intrinsic {
+                config::Intrinsic::FilePath => {
+                    Cow::Owned(item.path().into_os_string().to_string_lossy().into_owned())
+                }
+            },
+        };
+
+        vals.push(value);
+    }
+    Ok(vals)
 }
 
 fn extract_from_xml(
@@ -178,9 +223,13 @@ fn extract_from_xml(
     for part in parts {
         match part {
             xml_path::PathPart::Element(node_name) => {
-                element = element
-                    .get_child(node_name.as_ref())
-                    .ok_or_else(|| format!("Cannot find node: {} from xml path: {}", node_name.as_ref(), path.to_string()))?;
+                element = element.get_child(node_name.as_ref()).ok_or_else(|| {
+                    format!(
+                        "Cannot find node: {} from xml path: {}",
+                        node_name.as_ref(),
+                        path.to_string()
+                    )
+                })?;
             }
             xml_path::PathPart::Index(index) => {
                 element = element
