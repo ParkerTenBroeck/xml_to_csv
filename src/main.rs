@@ -6,7 +6,7 @@ use config::Config;
 pub mod config;
 pub mod xml_path;
 
-/// Simple program to greet a person
+/// XML to CSV converter
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
