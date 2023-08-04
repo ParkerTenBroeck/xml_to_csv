@@ -1,0 +1,90 @@
+[
+    {
+        "title": "XMLFile",
+        "intrinsic": "FilePath"
+    },
+    {
+        "title": "Disk",
+        "path_text": "device.platformname"
+    },
+    {
+        "title": "Started",
+        "path_text": "results.started"
+    },   
+    {
+        "title": "Finished",
+        "path_attr": "created"
+    },
+    {
+        "title": "Elapsed",
+        "path_text": "results.elapsed"
+    },   
+    {
+        "title": "DiskSerial",
+        "path_text": "device.serial-number"
+    },   
+    {
+        "title": "DiskInfo",
+        "path_text": "device.product"
+    },   
+    {
+        "title": "DiskRevision",
+        "path_text": "device.revision"
+    },   
+    {
+        "title": "DiskSize",
+        "path_text": "device.size"
+    },   
+    {
+        "title": "DiskSectors",
+        "path_text": "device.geometry.total-sec"
+    },   
+    {
+        "title": "DiskBPS",
+        "path_text": "device.geometry.bps"
+    },   
+    {
+        "title": "DiskBytes",
+        "text": "=INDIRECT(\"J\"&ROW())*INDIRECT(\"K\"&ROW())"
+    },
+    {
+        "title": "Technician",
+        "path_text": "technician.name"
+    },   
+    {
+        "title": "Provider",
+        "path_attr": "provider"
+    },   
+    {
+        "title": "ProviderVersion",
+        "path_attr": "version"
+    },   
+    {
+        "title": "OS",
+        "path_attr": "sysinfo.os"
+    },   
+    {
+        "title": "Build",
+        "path_attr": "sysinfo.kernel"
+    },   
+    {
+        "title": "Host",
+        "path_text": "sysinfo.hostname"
+    },   
+    {
+        "title": "Method",
+        "path_attr": "erase.method"
+    },   
+    {
+        "title": "Passes",
+        "path_attr": "erase.passes"
+    },
+    {
+        "title": "Errors",
+        "path_text": "results.errors"
+    },   
+    {
+        "title": "Result",
+        "path_text": "results.result"
+    }
+]
